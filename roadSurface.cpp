@@ -125,7 +125,7 @@ void gridMap::drawGridOnMap()
 	viewer.setBackgroundColor(0, 0, 0);
 	viewer.addPointCloud(cloud, "cloud");
 }
-
+//fill color
 void gridMap::fillColorOnMap(){
 	static int circleIndex=0;
 	float radius = squareSideSize*0.6;
