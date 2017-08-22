@@ -128,7 +128,7 @@ void gridMap::drawGridOnMap()
 
 void gridMap::fillColorOnMap(){
 	static int circleIndex=0;
-	float radius = squareSideSize*0.7071;
+	float radius = squareSideSize*0.6;
 	PointT pt;
 
 	for(int cr=0; cr < numRows; cr++){
@@ -227,7 +227,7 @@ void roadSurface::detectRoadSurface()
 void roadSurface::findAvgZofCell(int& cellRow,int& cellCol,float& avgZ){
 	std::vector<int> pointIdxRadiusSearch;
 	std::vector<float> pointRadiusSquaredDistance;
-	float radius = map->squareSideSize*0.7071;
+	float radius = map->squareSideSize*0.6;
 	avgZ=0;
 
     map->cellToPoint(cellRow,cellCol,searchPoint);
@@ -250,7 +250,7 @@ bool roadSurface::isCellRoadSurface(int& cellRow,int& cellCol,float& avgZ)
 {
 	std::vector<int> pointIdxRadiusSearch;
 	std::vector<float> pointRadiusSquaredDistance;
-	float radius = map->squareSideSize*0.7071;
+	float radius = map->squareSideSize*0.6;
 
 	map->cellToPoint(cellRow,cellCol,searchPoint);
 
