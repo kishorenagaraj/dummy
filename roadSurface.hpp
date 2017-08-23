@@ -10,8 +10,11 @@ enum eCellStatus{
 	CELL_CHECKED,
 	CELL_NOT_ROAD_SURFACE,
 	CELL_PASSED_ONCE,
-	CELL_PASSED_TWICE
+	CELL_PASSED_TWICE,
+	CELL_ROAD_SURFACE
 };
+
+class roadSurface;
 
 class gridMap{
 	public:
@@ -28,7 +31,7 @@ class gridMap{
 	public:	
 		gridMap(char* fileName,float squareSideSize);
 		void drawGridOnMap();
-		void fillColorOnMap();
+        void fillColorOnMap(roadSurface*);
 		void pointToCell(PointT& pt,int&,int&);
 		void cellToPoint(int&,int&,PointT&);
 };
@@ -44,9 +47,9 @@ class roadSurface{
 		roadSurface(char* fileName,float squareSideSize);
 		~roadSurface();
 		void detectRoadSurface();
-		void findAvgZofCell(int& cellRow,int& cellCol,float& avgZ);
+		void findAvgZofCell(int& cellRow,int& cellCol);
 		bool findCellsAndNeighbours(int& cellRow,int& cellCol,int& cr,int& cc,int& index);
-		bool isCellRoadSurface(int& cellRow,int& cellCol,float& avgZ);
-		bool findAvgZofNeighbourCell(int& cellRow, int& cellCol,float& avgZ);
+		bool isCellRoadSurface(int& cellRow,int& cellCol);
+		bool findAvgZofNeighbourCell(int& cellRow, int& cellCol);
 };
 #endif

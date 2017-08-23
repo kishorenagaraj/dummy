@@ -21,7 +21,8 @@ int debugRows=0,debugCols=0;
 #define SQUARE_SIDE_SIZE 0.5
 #define Z_THRESHOLD 0.1//0.1
 #define NUM_POINTS_ON_CELL 50
-#define PRCNTG_POINTS_ON_CELL 0.6 //0.6
+#define PRCNTG_POINTS_ON_CELL 0.7 //0.6
+#define NUM_CELLS_ROAD 3
 pcl::visualization::PCLVisualizer viewer ("PCL visualizer");
 
 ofstream myfile;
@@ -126,14 +127,32 @@ void gridMap::drawGridOnMap()
 	viewer.addPointCloud(cloud, "cloud");
 }
 //fill color
-void gridMap::fillColorOnMap(){
+void gridMap::fillColorOnMap(roadSurface* rs){
 	static int circleIndex=0;
 	float radius = squareSideSize*0.6;
 	PointT pt;
+    int CR=0,CC=0;
 
-	for(int cr=0; cr < numRows; cr++){
+//    for(int cr=0; cr < numRows; cr++){
+//        for(int cc=0; cc < numCols; cc++){
+//            if(cellStatus[cr][cc] == CELL_PASSED_TWICE){
+//                int cellCount=0;
+//                for(int i=1;i<9;i++){
+//                    if((rs->findCellsAndNeighbours(cr,cc,CR,CC,i))
+//                            && (cellStatus[CR][CC] >= CELL_PASSED_TWICE)){
+//                        cellCount++;
+//                    }
+//                }
+//                if(cellCount > NUM_CELLS_ROAD){
+//                    cellStatus[cr][cc] = CELL_ROAD_SURFACE;
+//                }
+//            }
+//        }
+//    }
+
+    for(int cr=0; cr < numRows; cr++){
 		for(int cc=0; cc < numCols; cc++){
-			if(cellStatus[cr][cc] == CELL_PASSED_TWICE){
+            if(cellStatus[cr][cc] == CELL_ROAD_SURFACE){
 				cellToPoint(cr,cc,pt);
 				std::string circleName = "circle" + std::to_string(++circleIndex);
 
@@ -186,9 +205,9 @@ void roadSurface::detectRoadSurface()
 
 	for(int cr=cellRow; cr < map->numRows; cr++)
 	{
-		if(cr!=cellRow){
+		if(cr!=cellRow)
 			rowChangeFlag=true;
-		}
+
 		for(int cc=cellCol; cc < map->numCols; cc++)
 		{
 			for(int nIndex=0;nIndex<9;nIndex++)
@@ -199,19 +218,21 @@ void roadSurface::detectRoadSurface()
                         || (map->cellStatus[CR][CC] == CELL_NOT_ROAD_SURFACE)){
 
 						if(map->cellStatus[CR][CC] == CELL_NOT_CHECKED)
-								map->cellStatus[CR][CC] = CELL_CHECKED;
+							map->cellStatus[CR][CC] = CELL_CHECKED;
+
+						if((map->cellStatus[CR][CC] > CELL_PASSED_ONCE))
+							searchPoint.z = map->cellAvgZ[CR][CC];
 					}
 					else{
 							if (rowChangeFlag){
-								findAvgZofNeighbourCell(CR,CC,avgZofCell);
-								findAvgZofCell(CR,CC,avgZofCell);
+								findAvgZofNeighbourCell(CR,CC);
 								rowChangeFlag = false;
 							}
 							if(nIndex == 0){
-								findAvgZofCell(CR,CC,avgZofCell);
+								findAvgZofCell(CR,CC);
 							}
-							isCellRoadSurface(CR,CC,avgZofCell);
-							//cout << ".";
+
+							isCellRoadSurface(CR,CC);
 							if(map->cellStatus[CR][CC] == CELL_NOT_CHECKED)
 								map->cellStatus[CR][CC] = CELL_CHECKED;
 					}
@@ -220,15 +241,15 @@ void roadSurface::detectRoadSurface()
 		}
 	}
 	//cout << endl;
-	map->fillColorOnMap();
+    map->fillColorOnMap(this);
 	//print_allCellStatus(map);
 }
 
-void roadSurface::findAvgZofCell(int& cellRow,int& cellCol,float& avgZ){
+void roadSurface::findAvgZofCell(int& cellRow,int& cellCol){
 	std::vector<int> pointIdxRadiusSearch;
 	std::vector<float> pointRadiusSquaredDistance;
 	float radius = map->squareSideSize*0.6;
-	avgZ=0;
+	float avgZ=0.0;
 
     map->cellToPoint(cellRow,cellCol,searchPoint);
 
@@ -241,12 +262,9 @@ void roadSurface::findAvgZofCell(int& cellRow,int& cellCol,float& avgZ){
         searchPoint.z = avgZ;
         map->cellAvgZ[cellRow][cellCol]=avgZ;
 	}
-    //else
-        //cout << "";
-	//cout <<"avg z of cell = " << avgZ << endl;
 }
 
-bool roadSurface::isCellRoadSurface(int& cellRow,int& cellCol,float& avgZ)
+bool roadSurface::isCellRoadSurface(int& cellRow,int& cellCol)
 {
 	std::vector<int> pointIdxRadiusSearch;
 	std::vector<float> pointRadiusSquaredDistance;
@@ -258,36 +276,47 @@ bool roadSurface::isCellRoadSurface(int& cellRow,int& cellCol,float& avgZ)
 	{
 		int count=0;
 		for (size_t i = 0; i < pointIdxRadiusSearch.size (); ++i){
-			if((map->cloud->points[pointIdxRadiusSearch[i]].z < (avgZ + Z_THRESHOLD))
-				&& (map->cloud->points[pointIdxRadiusSearch[i]].z > (avgZ - Z_THRESHOLD))){
+			if((map->cloud->points[pointIdxRadiusSearch[i]].z < (searchPoint.z + Z_THRESHOLD))
+				&& (map->cloud->points[pointIdxRadiusSearch[i]].z > (searchPoint.z - Z_THRESHOLD))){
 				count++;
 			}
 			map->cellAvgZ[cellRow][cellCol] += map->cloud->points[pointIdxRadiusSearch[i]].z;
 		}
 		if(count > 0 && count >= PRCNTG_POINTS_ON_CELL*pointIdxRadiusSearch.size())
 		{
-			map->cellAvgZ[cellRow][cellCol] /= pointIdxRadiusSearch.size();
 			if(map->cellStatus[cellRow][cellCol] == CELL_NOT_CHECKED){
 				map->cellStatus[cellRow][cellCol] = CELL_PASSED_ONCE;
 			}
 			else if(map->cellStatus[cellRow][cellCol] == CELL_PASSED_ONCE){
 				map->cellStatus[cellRow][cellCol] = CELL_PASSED_TWICE;
 			}
+			if(map->cellStatus[cellRow][cellCol] == CELL_PASSED_TWICE){
+                int CR=0,CC=0,cellCount=0;
+                for(int i=1;i<9;i++){
+                    if((findCellsAndNeighbours(cellRow,cellCol,CR,CC,i))
+                            && (map->cellStatus[CR][CC] >= CELL_PASSED_TWICE)){
+                        cellCount++;
+                    }
+                }
+                if(cellCount > NUM_CELLS_ROAD){
+                    map->cellStatus[cellRow][cellCol] = CELL_ROAD_SURFACE;
+                }
+            }
 		}
         else if(map->cellStatus[cellRow][cellCol] < CELL_PASSED_ONCE){
-            map->cellStatus[cellRow][cellCol] = CELL_NOT_ROAD_SURFACE;
+			map->cellStatus[cellRow][cellCol] = CELL_NOT_ROAD_SURFACE;
         }
+        map->cellAvgZ[cellRow][cellCol] /= pointIdxRadiusSearch.size();
 	}
 }
 
-bool roadSurface::findAvgZofNeighbourCell(int& cellRow,int& cellCol,float& avgZ)
+bool roadSurface::findAvgZofNeighbourCell(int& cellRow,int& cellCol)
 {
 	int cr=0,cc=0;
 	for(int i=1;i<9;i++){
 		findCellsAndNeighbours(cellRow,cellCol,cr,cc,i);
 		if(map->cellStatus[cr][cc] == CELL_PASSED_TWICE){
 			searchPoint.z = map->cellAvgZ[cr][cc];
-			avgZ = searchPoint.z;
 			break;
 		}
 	}
